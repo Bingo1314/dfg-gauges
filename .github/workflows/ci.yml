@@ -10,6 +10,10 @@ jobs:
   test:
     name: py${{ matrix.python }} / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    # Windows runner 的默认 stdout 是 cp1252，任何中文输出都会 UnicodeEncodeError。
+    # 代码里已 reconfigure，这里再兜一层：改环境变量比重装 locale 便宜。
+    env:
+      PYTHONIOENCODING: utf-8
     strategy:
       fail-fast: false
       matrix:

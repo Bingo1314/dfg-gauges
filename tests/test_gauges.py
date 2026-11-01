@@ -10,6 +10,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+# Windows 控制台默认 cp1252 / cp936，最后那行中文汇总会 UnicodeEncodeError：
+#   UnicodeEncodeError: 'charmap' codec can't encode characters in position 8-10
+# 结果是 32 个用例全跑完、全 PASS，进程却在打印汇总时崩掉 → CI 三个 Windows
+# job 全红，看起来像测试挂了，其实是报告打不出来。errors="replace" 保证
+# 哪怕终端字库缺失也只丢字符，不会让整轮结果变成 1。
+for _s in (sys.stdout, sys.stderr):
+    try:
+        _s.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):                    # pytest capture / 重定向流
+        pass
+
 # 缺依赖时必须**显式跳过**，不能假装通过 —— 「静默 PASS」比红灯更危险：
 # 用户看到 28/28 会以为一致性后端被测过了，其实一行没跑。
 _SKIPPED: list = []

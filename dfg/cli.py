@@ -247,10 +247,13 @@ def cmd_selftest(_a) -> int:
 
 # ============================================================ main
 def main(argv=None) -> int:
-    try:
-        sys.stdout.reconfigure(encoding="utf-8")
-    except Exception:                                       # noqa: BLE001
-        pass
+    # Windows 控制台默认 cp1252 / cp936：不加 errors="replace" 时，遇到终端字库
+    # 里没有的字符会抛 UnicodeEncodeError，把「通过/失败」汇总整段吞掉。
+    for _s in (sys.stdout, sys.stderr):
+        try:
+            _s.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):                # 重定向流 / 无 reconfigure
+            pass
 
     ap = argparse.ArgumentParser(prog="dfg", description="DreamForge Gauges：出片链路的量具")
     sub = ap.add_subparsers(dest="cmd", required=True)
