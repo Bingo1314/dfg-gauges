@@ -1,6 +1,13 @@
-# dfg · DreamForge Gauges
+# dfg · AI pipeline gauges
 
-**出片链路的三把量具。只度量，不生成。**
+[English](README.en.md) | **简体中文**
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](pyproject.toml)
+[![Dependencies](https://img.shields.io/badge/core%20deps-none-brightgreen.svg)](pyproject.toml)
+[![Tests](https://img.shields.io/badge/tests-31%20passing-brightgreen.svg)](tests/test_gauges.py)
+
+**出片链路的四把量具：提示词遵从度 · LLM 通道判活 · 命令对账 · 角色一致性。只度量，不生成。**
 
 AI 视频流水线最容易骗人的地方不是"做不出来"，而是**做出来了但不对，而且没人知道**：
 
@@ -71,7 +78,7 @@ $ dfg adherence --prompt "深夜 公寓 浴室 女人 揉肩 镜子" --storyboar
 ### 4. `dfg consistency` — 这两张图是同一个人吗
 
 ```bash
-$ dfg consistency --anchor cast/a38/anchor.png --views cast/a38/views --backend hf
+$ dfg consistency --anchor cast/hero/anchor.png --views cast/hero/views --backend hf
 [一致性] backend=hf median=0.872 min=0.755（4 张）⚠ 漂移 · 低于 0.8：full.png
    full.png                 0.755
    side.png                 0.865
@@ -183,7 +190,7 @@ compare('anchor.png', ['v1.png', 'v2.png'])['verdict']   # 'consistent'
 
 ## 出处
 
-这四把量具从 [DreamForge](../../README.md)（一个本地 AI 剧组的产能系统）里抽出来：
+这四把量具从 DreamForge（一个本地 AI 剧组的生产系统，未开源）里抽出来：
 它们是在真实事故中长出来的，不是设计出来的。
 
 | 量具 | 对应的事故 |
