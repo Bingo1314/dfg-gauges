@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dfg-gauges"
+version = "0.1.0"
+description = "DreamForge Gauges：AI 出片链路的三把量具（命令对账 / 通道判活 / 提示词遵从度 / 角色一致性）"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+keywords = ["ai-video", "prompt-adherence", "clip", "consistency", "ci", "llm-routing"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Quality Assurance",
+]
+dependencies = []
+
+[project.optional-dependencies]
+clip = ["torch", "transformers", "pillow", "numpy"]
+face = ["insightface", "onnxruntime", "opencv-python", "numpy"]
+dev = ["pytest"]
+
+[project.scripts]
+dfg = "dfg.cli:main"
+
+[tool.setuptools]
+packages = ["dfg"]
