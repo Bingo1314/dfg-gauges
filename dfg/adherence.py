@@ -44,8 +44,22 @@ _STOP = {
     "就是", "不是", "没有", "有些", "这些", "那些", "自己", "时候", "地方",
 }
 
-# 分隔符：中英文标点、空白、箭头、竖线、各类引号（引号本身不是内容）
-_SEP = re.compile(r"[，。；、：！？,.;:!?\-—…\s/|｜~～（）()\[\]【】<>《》「」『』“”‘’\"'`]+")
+# 硬分隔符：标点、箭头、竖线、各类引号（引号本身不是内容）。
+# ★ 不含空白：中文里空白是分隔；英文里空白是短语**内部**的空格，
+#   "rainy night" 是一个要素，拆成 "rainy" + "night" 会让 "red" 在
+#   "red umbrella" 里也算命中 —— 假命中最难查，所以英文整块保留。
+_SEP = re.compile(r"[，。；、：！？,.;:!?\-—…/|｜~～（）()\[\]【】<>《》「」『』“”‘’\"'`]+")
+# 英文短语开头常挂的冠词/介词：剥掉才可能命中正文
+_ARTICLES = re.compile(r"^(?:a|an|the|of|in|on|at|with|and|or|to|for|from|that|this|her|his|their)\s+",
+                       re.I)
+_CJK = re.compile(r"[\u4e00-\u9fff]")
+# 英文长句（超过要素长度上限）退化成逐词，丢掉这些纯功能词。
+# 为什么要有这条：整块超长 → 被 _push 丢弃 → terms 为空 → 上层判定「不适用」→
+# **静默放行**。英文长句提示词因此完全不设防，这比漏检更危险。
+_EN_STOP = {"the", "a", "an", "and", "or", "of", "in", "on", "at", "with", "to",
+            "for", "from", "that", "this", "these", "those", "her", "his", "their",
+            "by", "as", "is", "are", "was", "were", "be", "it", "its", "she", "he",
+            "they", "there", "here", "into", "onto", "over", "under", "very", "some"}
 # 切词用的虚词/介词/常见动作：整句原样出现几乎不可能，先切成短语。
 # 动作也切掉 —— 提示词里真正该被「照做」的是**名词要素**（人/地/物/氛围）；
 # 动作交给正文去演绎，留在要素里只会制造假警报。
@@ -87,7 +101,10 @@ def key_terms(prompt: str, max_terms: int = 14) -> list:
                 break
             t = n
         t = t.strip()
-        if len(t) < 2 or len(t) > 12:
+        # 英文短语本来就比中文要素长（"oil paper umbrella" 18 字符），
+        # 单独放宽；中文要素超过 12 基本不可能在正文里原样出现。
+        limit = 28 if not _CJK.search(t) else 12
+        if len(t) < 2 or len(t) > limit:
             return
         if t in _STOP:
             return
@@ -103,11 +120,33 @@ def key_terms(prompt: str, max_terms: int = 14) -> list:
 
     for m in _QUOTED.finditer(p):
         _push(m.group(1))
+    # 连字符当空格：中文「深夜-公寓」等价于「深夜 公寓」，
+    # 英文 "oil-paper umbrella" 才能整块保留成 "oil paper umbrella"。
+    p = p.replace("-", " ").replace("—", " ").replace("–", " ")
     for chunk in _SEP.split(p):
         if not chunk.strip():
             continue
-        for piece in _CUT.split(chunk):
-            _push(piece)
+        if not _CJK.search(chunk):
+            # 纯英文块：整块当一个要素，只剥掉开头的冠词/介词
+            t = chunk.strip()
+            for _ in range(3):
+                n = _ARTICLES.sub("", t)
+                if n == t:
+                    break
+                t = n
+            if len(t) > 28:
+                # 长句退化成逐词（否则整块被丢 → terms 空 → 静默放行）
+                for w in re.split(r"\s+", t):
+                    w = re.sub(r"[^\w']+$", "", w)
+                    if len(w) >= 3 and w.lower() not in _EN_STOP:
+                        _push(w)
+                continue
+            _push(t)
+            continue
+        # 中文块：空白先切（「深夜 公寓 浴室」是三个要素），再按虚词切
+        for w in chunk.split():
+            for piece in _CUT.split(w):
+                _push(piece)
     return terms[:max_terms]
 
 
@@ -154,7 +193,9 @@ def coverage(prompt: str, text: str, floor: float = DEFAULT_FLOOR,
         return {"terms": 0, "hit": 0, "ratio": None, "hit_terms": [],
                 "miss_terms": [], "ok": True, "floor": floor,
                 "note": "未给提示词，不适用"}
-    hay = text or ""
+    # 归一化必须两边一起做：要素那边把 "oil-paper" 拆成 "oil paper"，
+    # 正文这边不拆就永远匹配不上 —— 单向归一化等于给自己制造假警报。
+    hay = (text or "").replace("-", " ").replace("—", " ").replace("–", " ")
     hit = [t for t in terms if t in hay]
     miss = [t for t in terms if t not in hay]
     ratio = len(hit) / len(terms)

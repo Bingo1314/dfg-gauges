@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""dfg —— DreamForge Gauges：AI 出片链路的三把「量具」。
+"""dfg —— DreamForge Gauges：AI 出片链路的四把「量具」。
 
 这个包不含任何模型、卡池、提示词资产或业务规则。它只回答四个问题：
 

@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](pyproject.toml)
 [![Dependencies](https://img.shields.io/badge/core%20deps-none-brightgreen.svg)](pyproject.toml)
-[![Tests](https://img.shields.io/badge/tests-31%20passing-brightgreen.svg)](tests/test_gauges.py)
+[![Tests](https://img.shields.io/badge/tests-32%20passing-brightgreen.svg)](tests/test_gauges.py)
 
 **出片链路的四把量具：提示词遵从度 · LLM 通道判活 · 命令对账 · 角色一致性。只度量，不生成。**
 
@@ -29,16 +29,33 @@ pip install -e ".[face]"         # 可选：真人脸后端（insightface）
 
 Python ≥ 3.9。
 
+## 60 秒跑通（不需要准备任何素材）
+
+```bash
+pip install -e .
+dfg selftest                                                    # 24 项自检，零依赖
+
+dfg check --script examples/demo_stage.py --cmd "--force --reroll 2"
+dfg check --script examples/demo_stage.py --cmd "--force --nope 3"   # 故意失败，退出码 1
+
+dfg health --ledger examples/demo_ledger.jsonl --pick moonshot,qwen,deepseek,ghost
+dfg adherence --prompt "雨夜 木桥 油纸伞 红衣 银戒指" --storyboard examples/demo_storyboard.json
+```
+
+`examples/` 里是三个玩具文件（一个假阶段脚本、一份调用账本、一块分镜板），
+只为让上面每条命令都能在你机器上原样跑出下面写的输出。
+`consistency` 需要你自己的图，放在最后单独说。
+
 ## 四个命令
 
 ### 1. `dfg check` — 这条命令真能跑吗
 
 ```bash
-$ dfg check --script scripts/day_chain.py --cmd "--force --reroll 2"
-[PASS] day_chain.py（2 个 flag 对上）
+$ dfg check --script examples/demo_stage.py --cmd "--force --reroll 2"
+[PASS] demo_stage.py（2 个 flag 对上）
 
-$ dfg check --script scripts/day_chain.py --cmd "--force --nope 3"
-[FAIL] day_chain.py 不认 ['--nope']
+$ dfg check --script examples/demo_stage.py --cmd "--force --nope 3"
+[FAIL] demo_stage.py 不认 ['--nope']
 $ echo $?
 1
 ```
@@ -49,12 +66,13 @@ $ echo $?
 ### 2. `dfg health` — 我在用的通道还活着吗
 
 ```bash
-$ dfg health --ledger output/llm_call_log.jsonl --pick moonshot,qwen,deepseek --assert
-活 18 / 死 4 / 未知 0
-  ✓ qwen               alive
+$ dfg health --ledger examples/demo_ledger.jsonl --pick moonshot,qwen,deepseek,ghost
+活 2 / 死 1 / 未知 0
+  ✓ deepseek           alive
   ✗ moonshot           dead
-  ...
-兜底候选（跳过死通道）：['qwen', 'deepseek']
+  ✓ qwen               alive
+
+兜底候选（跳过死通道）：['qwen', 'deepseek', 'ghost']
 ```
 
 双源判活：体检报告（24h 内优先）→ 调用账本（JSONL 尾部 N 条）。
@@ -64,9 +82,12 @@ $ dfg health --ledger output/llm_call_log.jsonl --pick moonshot,qwen,deepseek --
 ### 3. `dfg adherence` — 导演按我写的走了吗
 
 ```bash
-$ dfg adherence --prompt "深夜 公寓 浴室 女人 揉肩 镜子" --storyboard sb.json
-[提示词] 遵从度 4/6（67%） · 未落地：女人、镜子
+$ dfg adherence --prompt "雨夜 木桥 油纸伞 红衣 银戒指" --storyboard examples/demo_storyboard.json
+[提示词] 遵从度 3/5（60%） · 未落地：红衣、银戒指
 ```
+
+上面这条用的 `examples/demo_storyboard.json` 里确实**没有**红衣和银戒指 ——
+输出不是示意，是真实结果。
 
 把提示词拆成关键要素（引号专名优先，再按标点/虚词切短语），
 在最终文本里找**原样出现**，算命中率。空提示词 = 不适用，绝不误判。
@@ -76,6 +97,9 @@ $ dfg adherence --prompt "深夜 公寓 浴室 女人 揉肩 镜子" --storyboar
 > 所以它只告警、不阻断。
 
 ### 4. `dfg consistency` — 这两张图是同一个人吗
+
+> 这一条是唯一需要你自备素材的：一张锚图 + 若干张同一角色的其它视角。
+> 下面用 `cast/hero/` 指代你自己的目录。
 
 ```bash
 $ dfg consistency --anchor cast/hero/anchor.png --views cast/hero/views --backend hf

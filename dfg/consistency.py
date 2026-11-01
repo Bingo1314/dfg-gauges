@@ -79,13 +79,26 @@ def _l2norm(x):
 
 
 def cosine(a, b) -> float:
-    """两个 L2 归一化向量的余弦（等价点积）。"""
-    import numpy as np
-    a = np.asarray(a, dtype="float32").reshape(-1)
-    b = np.asarray(b, dtype="float32").reshape(-1)
-    a = a / max(float(np.linalg.norm(a)), 1e-12)
-    b = b / max(float(np.linalg.norm(b)), 1e-12)
-    return float(a @ b)
+    """两个向量的余弦 —— **纯 Python，不需要 numpy**。
+
+    这是"是不是同一个人"的最后一环。不该因为没装 numpy 就让整个量具不可用：
+    1024 维点积用循环算，单次成本可以忽略，而 numpy 是可选依赖。
+    """
+    import math
+
+    va, vb = list(a), list(b)
+    n = min(len(va), len(vb))
+    if n == 0:
+        return 0.0
+    dot = na = nb = 0.0
+    for i in range(n):
+        x = float(va[i])
+        y = float(vb[i])
+        dot += x * y
+        na += x * x
+        nb += y * y
+    den = math.sqrt(na) * math.sqrt(nb)
+    return dot / den if den > 1e-12 else 0.0
 
 
 def score_matrix(embs):

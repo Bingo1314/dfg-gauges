@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](pyproject.toml)
 [![Dependencies](https://img.shields.io/badge/core%20deps-none-brightgreen.svg)](pyproject.toml)
-[![Tests](https://img.shields.io/badge/tests-31%20passing-brightgreen.svg)](tests/test_gauges.py)
+[![Tests](https://img.shields.io/badge/tests-32%20passing-brightgreen.svg)](tests/test_gauges.py)
 
 **Four gauges for AI content pipelines: prompt adherence, LLM channel liveness,
 argument reconciliation, and character consistency. Measure only — never generate.**
@@ -34,19 +34,41 @@ pip install -e ".[face]"         # optional: real-face backend (insightface)
 
 Python ≥ 3.9.
 
+## 60-second smoke test (needs no assets)
+
+```bash
+pip install -e .
+dfg selftest                                                     # 24 checks, zero deps
+
+dfg check --script examples/demo_stage.py --cmd "--force --reroll 2"
+dfg check --script examples/demo_stage.py --cmd "--force --nope 3"   # fails on purpose, exit 1
+
+dfg health --ledger examples/demo_ledger.jsonl --pick moonshot,qwen,deepseek,ghost
+dfg adherence --prompt "rainy night, wooden bridge, oil-paper umbrella, red coat, silver ring" \
+              --storyboard examples/demo_storyboard.json
+```
+
+`examples/` holds three toy files — a fake stage script, a call ledger, and a storyboard —
+purely so every command above reproduces the output below on your own machine.
+`consistency` is the only one that needs your images; it comes last.
+
 ## The four commands
 
 ### 1. `dfg check` — will this command actually run?
 
 ```bash
-$ dfg check --script scripts/day_chain.py --cmd "--force --reroll 2"
-[PASS] day_chain.py (2 flags reconciled)
+$ dfg check --script examples/demo_stage.py --cmd "--force --reroll 2"
+[PASS] demo_stage.py（2 个 flag 对上）
 
-$ dfg check --script scripts/day_chain.py --cmd "--force --nope 3"
-[FAIL] day_chain.py does not accept ['--nope']
+$ dfg check --script examples/demo_stage.py --cmd "--force --nope 3"
+[FAIL] demo_stage.py 不认 ['--nope']
 $ echo $?
 1
 ```
+
+> CLI messages are currently in Chinese (the tool grew up in a Chinese-language
+> pipeline). `[PASS]`/`[FAIL]`, the exit codes, and everything under `--json`
+> are language-neutral, so CI usage is unaffected. See *Known limitations*.
 
 It parses the script's registered `add_argument` calls with `ast` and reconciles
 them against the command you built. **The target program is never executed** —
@@ -55,13 +77,17 @@ no side effects. Drop it into CI or `pre-commit` and this class of bug disappear
 ### 2. `dfg health` — is the provider I'm using still alive?
 
 ```bash
-$ dfg health --ledger output/llm_call_log.jsonl --pick moonshot,qwen,deepseek --assert
-alive 18 / dead 4 / unknown 0
-  ✓ qwen               alive
+$ dfg health --ledger examples/demo_ledger.jsonl --pick moonshot,qwen,deepseek,ghost
+活 2 / 死 1 / 未知 0
+  ✓ deepseek           alive
   ✗ moonshot           dead
-  ...
-fallback candidates (dead channels skipped): ['qwen', 'deepseek']
+  ✓ qwen               alive
+
+兜底候选（跳过死通道）：['qwen', 'deepseek', 'ghost']
 ```
+
+Note `ghost` in the fallback list: it has **no samples**, so it is not killed.
+A brand-new channel should not be condemned before its first call.
 
 Two sources: the health report (preferred if < 24h old) and the call ledger
 (JSONL, last N entries). The rule is deliberately conservative:
@@ -73,9 +99,14 @@ candidate, which makes it a CI assertion.
 ### 3. `dfg adherence` — did the model follow the prompt?
 
 ```bash
-$ dfg adherence --prompt "rainy night, umbrella, wooden bridge" --storyboard sb.json
-[adherence] 4/6 (67%) · missing: bridge, wooden
+$ dfg adherence --prompt "rainy night, wooden bridge, oil-paper umbrella, red coat, silver ring" \
+                --storyboard examples/demo_storyboard.json
+[提示词] 遵从度 3/5（60%） · 未落地：red coat、silver ring
 ```
+
+That output is real: `examples/demo_storyboard.json` genuinely has no red coat
+and no silver ring. Multi-word English phrases stay whole (`red coat` is one
+term, not `red` + `coat`) — splitting them would let "red umbrella" satisfy "red".
 
 It splits the prompt into key terms (quoted proper nouns first, then phrases cut
 on punctuation and function words) and looks for **verbatim** occurrences in the
@@ -223,6 +254,15 @@ that is not open source. They grew out of real incidents, not design documents:
 
 The point of extracting them isn't "we open-sourced a library". It's that
 **nobody else should have to step on these same rakes.**
+
+## Known limitations
+
+- **CLI messages are Chinese.** The tool grew up inside a Chinese-language
+  pipeline. `[PASS]`/`[FAIL]`, exit codes, and `--json` are language-neutral;
+  an English message table is not written yet.
+- `consistency` scores are only comparable within one backend (see above).
+- `adherence` is verbatim matching. It cannot tell you a sentence is *good*,
+  only that the elements are present.
 
 ## Boundaries
 

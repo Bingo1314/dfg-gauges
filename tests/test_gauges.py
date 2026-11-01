@@ -197,11 +197,20 @@ def test_missing_ledger_is_not_fatal(tmp_path):
 
 # ============================================================ consistency 数学
 def test_cosine_basics():
-    np = __import__("numpy")
-    from dfg.consistency import cosine, score_matrix
+    """余弦是纯 Python 的：核心依赖为空时也必须能算对。"""
+    from dfg.consistency import cosine
     assert abs(cosine([1, 0], [1, 0]) - 1) < 1e-6
     assert abs(cosine([1, 0], [0, 1])) < 1e-6
     assert abs(cosine([3, 0], [7, 0]) - 1) < 1e-6      # 不看模长
+    assert cosine([0, 0], [1, 1]) == 0.0               # 零向量不炸、不返回 NaN
+
+
+def test_score_matrix_needs_numpy():
+    """矩阵版是批量诊断用的，允许依赖 numpy —— 缺了要显式跳过。"""
+    if _require(["numpy"], "score_matrix"):
+        return "skip"
+    import numpy as np
+    from dfg.consistency import score_matrix
     m = score_matrix(np.array([[1.0, 0.0], [0.0, 1.0]]))
     assert abs(m[0][0] - 1) < 1e-6 and abs(m[0][1]) < 1e-6
 

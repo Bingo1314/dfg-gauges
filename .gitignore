@@ -16,6 +16,8 @@ htmlcov/
 # Virtual envs
 .venv/
 venv/
+# 本地验证「核心零依赖」时临时建的干净环境，验完即弃
+_clean_venv/
 
 # Local model weights people point --clip at
 *.safetensors
