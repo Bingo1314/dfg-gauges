@@ -157,6 +157,7 @@ def cmd_selftest(_a) -> int:
     from .preflight import check_cmd, script_flags
 
     n_ok, fails = 0, []
+    n_skip = [0]
 
     def ck(cond, name, detail=""):
         nonlocal n_ok
@@ -218,22 +219,29 @@ def cmd_selftest(_a) -> int:
         ck(pick_alive(["bad", "good"], st) == ["good"], "兜底跳过死通道")
 
     # consistency 的数学部分（不加载模型：骨架要能在无 torch 环境自证）
+    # cosine 是纯 Python 的，任何环境都必须真跑；只有矩阵版要用 numpy。
+    from .consistency import cosine
+
+    ck(abs(cosine([1.0, 0.0], [1.0, 0.0]) - 1.0) < 1e-6, "cosine 同向 = 1")
+    ck(abs(cosine([1.0, 0.0], [0.0, 1.0])) < 1e-6, "cosine 正交 = 0")
+    ck(abs(cosine([2.0, 0.0], [5.0, 0.0]) - 1.0) < 1e-6, "cosine 不看模长（未归一也等于 1）")
     try:
         import numpy as np
 
-        from .consistency import cosine, score_matrix
+        from .consistency import score_matrix
 
-        ck(abs(cosine([1.0, 0.0], [1.0, 0.0]) - 1.0) < 1e-6, "cosine 同向 = 1")
-        ck(abs(cosine([1.0, 0.0], [0.0, 1.0])) < 1e-6, "cosine 正交 = 0")
-        ck(abs(cosine([2.0, 0.0], [5.0, 0.0]) - 1.0) < 1e-6, "cosine 不看模长（未归一也等于 1）")
         m = score_matrix(np.array([[1.0, 0.0], [0.0, 1.0]]))
         ck(abs(m[0][0] - 1.0) < 1e-6 and abs(m[0][1]) < 1e-6, "score_matrix 对角=1、正交=0")
     except ImportError:
-        _p("  [SKIP] consistency 数学自检（未装 numpy）")
+        n_skip[0] += 1
+        _p("  [SKIP] score_matrix（未装 numpy；余弦部分已真跑）")
     except Exception as e:                                  # noqa: BLE001
-        ck(False, "consistency 数学自检", f"{type(e).__name__}: {e}")
+        ck(False, "score_matrix 自检", f"{type(e).__name__}: {e}")
 
-    _p(f"\n自检：{n_ok} 通过 / {len(fails)} 失败")
+    # 跳过项必须进统计 —— 「20 通过 / 0 失败」看起来像全过，
+    # 但实际少跑了 4 项。静默的覆盖率比红灯更危险。
+    skip_tail = f" / {n_skip[0]} 跳过（缺依赖，未真验）" if n_skip[0] else ""
+    _p(f"\n自检：{n_ok} 通过{skip_tail} / {len(fails)} 失败")
     return 1 if fails else 0
 
 
