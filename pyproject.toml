@@ -56,10 +56,10 @@ dev = ["pytest"]
 dfg = "dfg.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/<owner>/dfg-gauges"
-Repository = "https://github.com/<owner>/dfg-gauges"
-Issues = "https://github.com/<owner>/dfg-gauges/issues"
-Changelog = "https://github.com/<owner>/dfg-gauges/releases"
+Homepage = "https://github.com/Bingo1314/dfg-gauges"
+Repository = "https://github.com/Bingo1314/dfg-gauges"
+Issues = "https://github.com/Bingo1314/dfg-gauges/issues"
+Changelog = "https://github.com/Bingo1314/dfg-gauges/releases"
 
 [tool.setuptools]
 packages = ["dfg"]
